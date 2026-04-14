@@ -1,0 +1,15 @@
+{
+  "name": "handrix",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:fe\" \"npm run dev:be\"",
+    "dev:fe": "npm run dev --prefix frontend",
+    "dev:be": "npm run start:dev --prefix backend",
+    "build:fe": "npm run build --prefix frontend",
+    "build:be": "npm run build --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
