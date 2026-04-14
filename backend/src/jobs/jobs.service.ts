@@ -130,7 +130,7 @@ export class JobsService {
             id: job.handyman.id,
             name: job.handyman.name,
             avatarUrl: job.handyman.avatarUrl,
-            rating: handymanProfile?.rating ?? null,
+            rating: handymanProfile?.rating ?? 0,
           }
         : null,
       createdAt: job.createdAt.toISOString(),
@@ -249,7 +249,7 @@ export class JobsService {
         jobId: j.id,
         category: j.category.name,
         status: j.status,
-        payout: j.finalPrice ? Number(j.finalPrice) * 0.8 : null,
+        payout: Number(j.finalPrice ?? j.quotedPrice) * 0.8,
         createdAt: j.createdAt.toISOString(),
       })),
       totalEarned: Number(totalEarned._sum.finalPrice ?? 0) * 0.8,

@@ -5,8 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export class JobCategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.jobCategory.findMany({
+  async findAll() {
+    const categories = await this.prisma.jobCategory.findMany({
       select: {
         id: true,
         name: true,
@@ -15,6 +15,13 @@ export class JobCategoriesService {
         basePrice: true,
         estimatedDuration: true,
       },
+      orderBy: { name: 'asc' },
     });
+    return {
+      categories: categories.map((c) => ({
+        ...c,
+        basePrice: Number(c.basePrice),
+      })),
+    };
   }
 }

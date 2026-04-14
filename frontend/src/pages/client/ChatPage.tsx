@@ -11,20 +11,17 @@ export default function ClientChatPage() {
   const { id: jobId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, messages, setMessages, appendMessage, addToast } = useStore();
-  useWebSocket('chat');
+  useWebSocket('chat', jobId);
 
-  const { isLoading } = useQuery({
+  const { isLoading, data } = useQuery({
     queryKey: ['chatMessages', jobId],
     queryFn: () => chatService.getMessages(jobId!),
     enabled: !!jobId,
-    onSuccess: (data: { messages: typeof messages }) => {
-      setMessages(data.messages);
-    },
-  } as Parameters<typeof useQuery>[0]);
+  });
 
   useEffect(() => {
-    return () => { /* messages persist in store for toast notifications */ };
-  }, []);
+    if (data?.messages) setMessages(data.messages);
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSend(content: string) {
     if (!jobId || !user) return;

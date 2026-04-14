@@ -23,7 +23,8 @@ export class JobsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(@ConnectedSocket() client: Socket) {
-    const token = client.handshake.query.token as string;
+    // Accept token from auth object (socket.io v3+) or legacy query param
+    const token = (client.handshake.auth?.token ?? client.handshake.query.token) as string;
     if (!token) {
       client.emit('error', { message: 'Authentication required' });
       client.disconnect();

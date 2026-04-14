@@ -9,6 +9,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JobStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
@@ -23,7 +24,8 @@ export class ChatGateway implements OnGatewayConnection {
   ) {}
 
   async handleConnection(@ConnectedSocket() client: Socket) {
-    const token = client.handshake.query.token as string;
+    // Accept token from auth object (socket.io v3+) or legacy query param
+    const token = (client.handshake.auth?.token ?? client.handshake.query.token) as string;
     if (!token) {
       client.emit('error', { message: 'Authentication required' });
       client.disconnect();
@@ -36,10 +38,32 @@ export class ChatGateway implements OnGatewayConnection {
       });
       client.data.userId = payload.sub;
       client.data.role = payload.role;
+
+      // Auto-join chat rooms for the user's active jobs
+      const activeJobs = await this.prisma.job.findMany({
+        where: {
+          OR: [{ clientId: payload.sub }, { handymanId: payload.sub }],
+          status: { notIn: [JobStatus.COMPLETED, JobStatus.CANCELLED] },
+        },
+        select: { id: true },
+      });
+      for (const job of activeJobs) {
+        await client.join(`chat:${job.id}`);
+      }
     } catch {
       client.emit('error', { message: 'Invalid token' });
       client.disconnect();
     }
+  }
+
+  // Explicit room join for jobs created after the socket connected
+  @SubscribeMessage('chat:join')
+  async handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { jobId: string },
+  ) {
+    if (!client.data.userId || !data?.jobId) return;
+    await client.join(`chat:${data.jobId}`);
   }
 
   @SubscribeMessage('chat:send')
@@ -77,8 +101,8 @@ export class ChatGateway implements OnGatewayConnection {
       createdAt: message.createdAt.toISOString(),
     };
 
-    this.server.to(`chat:${data.jobId}`).emit('chat:message', payload);
     await client.join(`chat:${data.jobId}`);
+    this.server.to(`chat:${data.jobId}`).emit('chat:message', payload);
   }
 
   emitChatMessage(

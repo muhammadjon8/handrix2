@@ -31,11 +31,15 @@ export default function BookLocationPage() {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [searchError, setSearchError] = useState('');
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Prevents re-searching when searchQuery is set programmatically after a selection
+  const skipNextSearchRef = useRef(false);
 
   const searchNominatim = useCallback(async (q: string) => {
     if (q.trim().length < 3) {
       setSuggestions([]);
+      setSuggestionsOpen(false);
       return;
     }
     setSearchError('');
@@ -47,7 +51,7 @@ export default function BookLocationPage() {
       if (!res.ok) throw new Error('Search failed');
       const results: NominatimResult[] = await res.json();
       setSuggestions(results);
-      setSuggestionsOpen(true);
+      if (results.length > 0) setSuggestionsOpen(true);
     } catch {
       setSearchError('Address search unavailable. Please try again.');
       setSuggestions([]);
@@ -56,11 +60,21 @@ export default function BookLocationPage() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Skip the search triggered by a programmatic selection
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
+
     debounceRef.current = setTimeout(() => searchNominatim(searchQuery), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery, searchNominatim]);
 
   function handleSelectSuggestion(s: NominatimResult) {
+    // Set the flag before updating searchQuery so the useEffect skips the next search
+    skipNextSearchRef.current = true;
+
     setSelectedLat(parseFloat(s.lat));
     setSelectedLng(parseFloat(s.lon));
     setSelectedAddress(s.display_name);
@@ -90,12 +104,16 @@ export default function BookLocationPage() {
           const data = await res.json();
           const addr = data.display_name ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
           setSelectedAddress(addr);
+          skipNextSearchRef.current = true;
           setSearchQuery(addr);
         } catch {
           const addr = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
           setSelectedAddress(addr);
+          skipNextSearchRef.current = true;
           setSearchQuery(addr);
         }
+        setSuggestions([]);
+        setSuggestionsOpen(false);
         setGeoLoading(false);
       },
       (err) => {
@@ -107,7 +125,8 @@ export default function BookLocationPage() {
   }
 
   function handleContinue() {
-    if (!selectedLat || !selectedLng || !state) return;
+    // Use === null to correctly handle coordinates at 0 (equator / prime meridian)
+    if (selectedLat === null || selectedLng === null || !state) return;
     navigate('/client/book/estimate', {
       state: {
         categoryId: state.categoryId,
@@ -120,8 +139,9 @@ export default function BookLocationPage() {
     });
   }
 
-  const mapCenter: [number, number] = selectedLat && selectedLng
-    ? [selectedLat, selectedLng]
+  const hasSelection = selectedLat !== null && selectedLng !== null;
+  const mapCenter: [number, number] = hasSelection
+    ? [selectedLat!, selectedLng!]
     : DEFAULT_CENTER;
 
   return (
@@ -182,9 +202,10 @@ export default function BookLocationPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              // Reset selection if user edits address
-              if (selectedAddress && e.target.value !== selectedAddress) {
+              const val = e.target.value;
+              setSearchQuery(val);
+              // If the user edits the text after a selection, clear the selection
+              if (selectedAddress && val !== selectedAddress) {
                 setSelectedLat(null);
                 setSelectedLng(null);
                 setSelectedAddress('');
@@ -200,6 +221,7 @@ export default function BookLocationPage() {
           {suggestionsOpen && suggestions.length > 0 && (
             <ul
               role="listbox"
+              aria-label="Address suggestions"
               className="absolute z-30 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 overflow-hidden"
             >
               {suggestions.map((s) => (
@@ -207,7 +229,12 @@ export default function BookLocationPage() {
                   key={s.place_id}
                   role="option"
                   aria-selected={selectedAddress === s.display_name}
-                  onMouseDown={() => handleSelectSuggestion(s)}
+                  // onMouseDown + preventDefault prevents the input's onBlur from firing,
+                  // making the selection deterministic and avoiding the dropdown closing race.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(s);
+                  }}
                   className="px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 truncate"
                 >
                   {s.display_name}
@@ -221,18 +248,19 @@ export default function BookLocationPage() {
           )}
         </div>
 
-        {/* Map preview */}
-        {selectedLat && selectedLng && (
-          <div className="space-y-2">
+        {/* Map preview — always mounted to avoid Leaflet teardown errors.
+            When no location is selected the map shows a default world view with no pins. */}
+        <div className="space-y-1">
+          {hasSelection && (
             <p className="text-xs font-medium text-gray-500">Selected location</p>
-            <MapEmbed
-              center={mapCenter}
-              zoom={15}
-              pins={[{ lat: selectedLat, lng: selectedLng, label: selectedAddress || 'Job location' }]}
-              className="h-52 w-full rounded-xl border border-gray-200"
-            />
-          </div>
-        )}
+          )}
+          <MapEmbed
+            center={mapCenter}
+            zoom={hasSelection ? 15 : 2}
+            pins={hasSelection ? [{ lat: selectedLat!, lng: selectedLng!, label: selectedAddress || 'Job location' }] : []}
+            className="h-52 w-full rounded-xl border border-gray-200"
+          />
+        </div>
 
         {/* Description */}
         <div>
@@ -255,7 +283,7 @@ export default function BookLocationPage() {
         <button
           type="button"
           onClick={handleContinue}
-          disabled={!selectedLat || !selectedLng}
+          disabled={!hasSelection}
           className="w-full py-3 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition"
         >
           Continue

@@ -6,7 +6,7 @@ import type { ChatMessage, JobStatus } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3000';
 
-export function useWebSocket(activeView?: string) {
+export function useWebSocket(activeView?: string, chatJobId?: string) {
   const jobsSocketRef = useRef<Socket | null>(null);
   const chatSocketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
@@ -17,6 +17,11 @@ export function useWebSocket(activeView?: string) {
 
     const jobsSocket = io(`${WS_URL}/jobs`, { auth: { token: accessToken } });
     const chatSocket = io(`${WS_URL}/chat`, { auth: { token: accessToken } });
+
+    // Join the specific chat room once connected (for jobs created after initial connect)
+    if (chatJobId) {
+      chatSocket.on('connect', () => chatSocket.emit('chat:join', { jobId: chatJobId }));
+    }
 
     jobsSocketRef.current = jobsSocket;
     chatSocketRef.current = chatSocket;
@@ -68,7 +73,7 @@ export function useWebSocket(activeView?: string) {
       jobsSocket.disconnect();
       chatSocket.disconnect();
     };
-  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessToken, chatJobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { jobsSocket: jobsSocketRef.current, chatSocket: chatSocketRef.current };
 }

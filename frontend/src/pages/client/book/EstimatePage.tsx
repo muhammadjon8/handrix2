@@ -62,9 +62,12 @@ export default function BookEstimatePage() {
           currency: res.priceEstimate.currency,
           estimatedDuration: res.estimatedDuration,
         });
-      } catch {
+      } catch (err: unknown) {
         if (cancelled) return;
-        setError('Could not fetch an estimate. Please try again.');
+        console.error('[EstimatePage] createJob failed:', err);
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setError(msg ? `Error: ${msg}` : 'Could not fetch an estimate. Please try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }

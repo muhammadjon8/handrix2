@@ -49,17 +49,18 @@ async function main() {
   ];
 
   for (const cat of categories) {
-    await prisma.jobCategory.upsert({
-      where: { id: cat.name },
-      update: {},
-      create: {
-        name: cat.name,
-        description: cat.description,
-        basePrice: cat.basePrice,
-        estimatedDuration: cat.estimatedDuration,
-        skillTags: cat.skillTags,
-      },
-    });
+    const existing = await prisma.jobCategory.findFirst({ where: { name: cat.name } });
+    if (!existing) {
+      await prisma.jobCategory.create({
+        data: {
+          name: cat.name,
+          description: cat.description,
+          basePrice: cat.basePrice,
+          estimatedDuration: cat.estimatedDuration,
+          skillTags: cat.skillTags,
+        },
+      });
+    }
   }
 
   console.log('Seeded job categories');

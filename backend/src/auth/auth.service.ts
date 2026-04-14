@@ -41,8 +41,10 @@ export class AuthService {
     }
 
     const accessToken = this.signAccess(user.id, user.role);
+    const refreshToken = this.signRefresh(user.id);
     return {
       accessToken,
+      refreshToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     };
   }
