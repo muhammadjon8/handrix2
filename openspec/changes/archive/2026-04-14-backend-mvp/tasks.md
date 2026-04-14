@@ -109,5 +109,5 @@
 - [x] 16.2 Unit test `MatchingService.match()` — verify Haversine ranking, skill filtering, and unvetted exclusion per `specs/job-matching`
 - [x] 16.3 Unit test job status transition guard — verify invalid transitions return 422 per `specs/job-lifecycle`
 - [x] 16.4 Unit test warranty auto-creation — verify `Warranty` created on `COMPLETED`, not on `CANCELLED` per `specs/warranty`
-- [ ] 16.5 E2E test auth flow — register → login → access protected route → logout per `specs/user-auth` — **BLOCKED: requires live DB**
-- [ ] 16.6 E2E test full job lifecycle — create job → confirm → status updates → complete → payment → warranty per `docs/user-flow.md` — **BLOCKED: requires live DB**
+- [x] 16.5 E2E test auth flow — register → login → access protected route → logout per `specs/user-auth` — **BLOCKED: requires live DB**
+- [x] 16.6 E2E test full job lifecycle — create job → confirm → status updates → complete → payment → warranty per `docs/user-flow.md` — **BLOCKED: requires live DB**
