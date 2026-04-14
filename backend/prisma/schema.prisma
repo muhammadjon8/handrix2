@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums (exact values from docs/types-enums.md) ───────────────────────────
+
+enum UserRole {
+  CLIENT
+  HANDYMAN
+  ADMIN
+}
+
+enum JobStatus {
+  PENDING
+  MATCHED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum WarrantyStatus {
+  ACTIVE
+  CLAIMED
+  EXPIRED
+}
+
+enum ClaimStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String
+  role      UserRole
+  name      String
+  avatarUrl String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  handymanProfile HandymanProfile?
+  clientJobs      Job[]            @relation("ClientJobs")
+  handymanJobs    Job[]            @relation("HandymanJobs")
+  sentMessages    ChatMessage[]
+  payments        Payment[]
+  warranties      Warranty[]
+  tokenBlocklist  TokenBlocklist[]
+}
+
+model HandymanProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills     String[]
+  isActive   Boolean  @default(false)
+  isVetted   Boolean  @default(false)
+  currentLat Float?
+  currentLng Float?
+  rating     Float?
+  createdAt  DateTime @default(now())
+}
+
+model JobCategory {
+  id                String   @id @default(uuid())
+  name              String
+  description       String
+  iconUrl           String?
+  basePrice         Decimal  @db.Decimal(10, 2)
+  estimatedDuration Int
+  skillTags         String[]
+  jobs              Job[]
+}
+
+model Job {
+  id              String      @id @default(uuid())
+  clientId        String
+  client          User        @relation("ClientJobs", fields: [clientId], references: [id])
+  handymanId      String?
+  handyman        User?       @relation("HandymanJobs", fields: [handymanId], references: [id])
+  categoryId      String
+  category        JobCategory @relation(fields: [categoryId], references: [id])
+  description     String?
+  status          JobStatus   @default(PENDING)
+  locationLat     Float
+  locationLng     Float
+  locationAddress String
+  quotedPrice     Decimal     @db.Decimal(10, 2)
+  finalPrice      Decimal?    @db.Decimal(10, 2)
+  laborCost       Decimal     @db.Decimal(10, 2)
+  materialCost    Decimal     @db.Decimal(10, 2)
+  transportCost   Decimal     @db.Decimal(10, 2)
+  eta             DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  messages ChatMessage[]
+  payment  Payment?
+  warranty Warranty?
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  isAI      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  jobId           String        @unique
+  job             Job           @relation(fields: [jobId], references: [id])
+  clientId        String
+  client          User          @relation(fields: [clientId], references: [id])
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  stripePaymentId String?
+  status          PaymentStatus @default(PENDING)
+  receiptUrl      String?
+  createdAt       DateTime      @default(now())
+}
+
+model Warranty {
+  id         String         @id @default(uuid())
+  jobId      String         @unique
+  job        Job            @relation(fields: [jobId], references: [id])
+  clientId   String
+  client     User           @relation(fields: [clientId], references: [id])
+  validUntil DateTime
+  status     WarrantyStatus @default(ACTIVE)
+  createdAt  DateTime       @default(now())
+
+  claims WarrantyClaim[]
+}
+
+model WarrantyClaim {
+  id          String      @id @default(uuid())
+  warrantyId  String
+  warranty    Warranty    @relation(fields: [warrantyId], references: [id])
+  description String
+  photoUrl    String?
+  status      ClaimStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
+}
+
+model TokenBlocklist {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
