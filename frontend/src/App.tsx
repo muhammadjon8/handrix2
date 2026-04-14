@@ -1,121 +1,217 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { TopNav } from './components/TopNav';
+import { BottomNavMobile } from './components/BottomNavMobile';
+import { ToastProvider } from './components/Toast';
+import { useStore } from './store';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Auth pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// Client pages
+import ClientHomePage from './pages/client/HomePage';
+import ClientJobHistoryPage from './pages/client/JobHistoryPage';
+import ClientJobDetailPage from './pages/client/JobDetailPage';
+import ClientTrackingPage from './pages/client/TrackingPage';
+import ClientChatPage from './pages/client/ChatPage';
+import ClientPaymentPage from './pages/client/PaymentPage';
+import ClientReceiptPage from './pages/client/ReceiptPage';
+import ClientWarrantyPage from './pages/client/WarrantyPage';
 
-      <div className="ticks"></div>
+// Client booking flow
+import BookCategoryPage from './pages/client/book/CategoryPage';
+import BookLocationPage from './pages/client/book/LocationPage';
+import BookEstimatePage from './pages/client/book/EstimatePage';
+import BookConfirmedPage from './pages/client/book/ConfirmedPage';
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+// Handyman pages
+import HandymanJobBoardPage from './pages/handyman/JobBoardPage';
+import HandymanActiveJobPage from './pages/handyman/ActiveJobPage';
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Admin pages
+import AdminDashboardPage from './pages/admin/DashboardPage';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
+
+function RoleRedirect() {
+  const { isAuthenticated, user } = useStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role === 'CLIENT') return <Navigate to="/client/home" replace />;
+  if (user?.role === 'HANDYMAN') return <Navigate to="/handyman/jobs" replace />;
+  if (user?.role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
+  return <Navigate to="/login" replace />;
 }
 
-export default App
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen bg-gray-50">
+        <TopNav />
+        <main className="pt-14 pb-16">
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Client routes */}
+            <Route
+              path="/client/home"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientHomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/book/category"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <BookCategoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/book/location"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <BookLocationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/book/estimate"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <BookEstimatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/book/confirmed"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <BookConfirmedPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientJobHistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientJobDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id/track"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientTrackingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id/chat"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT', 'HANDYMAN']}>
+                  <ClientChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id/payment"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientPaymentPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id/receipt"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientReceiptPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/client/jobs/:id/warranty"
+              element={
+                <ProtectedRoute allowedRoles={['CLIENT']}>
+                  <ClientWarrantyPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Handyman routes */}
+            <Route
+              path="/handyman/home"
+              element={<Navigate to="/handyman/jobs" replace />}
+            />
+            <Route
+              path="/handyman/jobs"
+              element={
+                <ProtectedRoute allowedRoles={['HANDYMAN']}>
+                  <HandymanJobBoardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/handyman/jobs/:id"
+              element={
+                <ProtectedRoute allowedRoles={['HANDYMAN']}>
+                  <HandymanActiveJobPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Handyman chat — shares the same ChatPage component */}
+            <Route
+              path="/handyman/jobs/:id/chat"
+              element={
+                <ProtectedRoute allowedRoles={['HANDYMAN']}>
+                  <ClientChatPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin routes */}
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Root redirect */}
+            <Route path="/" element={<RoleRedirect />} />
+
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <ToastProvider />
+        <BottomNavMobile />
+      </div>
+    </QueryClientProvider>
+  );
+}
