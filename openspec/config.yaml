@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  ## Monorepo Structure
+  This is a monorepo with two apps and a shared docs layer:
+    - backend/   — NestJS REST + WebSocket API
+    - frontend/  — React (Vite + TypeScript)
+    - docs/      — Shared source of truth for both apps (see below)
+
+  ## Shared Docs (MUST READ before implementing anything)
+  All API contracts, user flows, types, and enums are defined once and shared.
+  Both backend and frontend MUST stay in sync with these files:
+    - docs/api-contract.md       — All REST endpoint definitions, request/response shapes
+    - docs/websocket-contract.md — WebSocket event definitions
+    - docs/user-flow.md          — User flows (Client + Handyman journeys)
+    - docs/types-enums.md        — Shared types and enums (roles, statuses, etc.)
+
+  ## Rules
+  - Do NOT invent or deviate from endpoint paths, payload shapes, or field names defined in docs/api-contract.md
+  - Do NOT invent types or enums — use exactly what is in docs/types-enums.md
+  - User flows in docs/user-flow.md define the canonical screen/step order — frontend must follow them
+  - WebSocket events in docs/websocket-contract.md must be implemented with the exact event names defined there
+
+  ## Tech Stack
+  - Backend: NestJS, TypeScript, REST + WebSocket
+  - Frontend: React, Vite, TypeScript
+  - Auth: JWT (Bearer token), except /auth/* endpoints
+  - IDs: UUID v4 strings
+  - Timestamps: ISO 8601
+
+rules:
+  proposal:
+    - Always reference which section of docs/ this proposal touches
+    - State explicitly whether this is a backend, frontend, or full-stack change
+    - List any new types/enums needed and verify they don't already exist in docs/types-enums.md
+  tasks:
+    - Each task must reference the relevant docs/ file it implements (e.g. "per docs/api-contract.md §2.3")
+    - Backend tasks must not define data shapes — import them from the shared contract
+    - Frontend tasks must not hardcode API paths — derive them from docs/api-contract.md
